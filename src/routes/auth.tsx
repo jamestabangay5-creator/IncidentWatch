@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Shield } from "lucide-react";
+import { Shield, Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -25,6 +25,8 @@ function AuthPage() {
   const { user, isAdmin, loading, signIn, signUp } = useAuth();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
+  const [showPwReg, setShowPwReg] = useState(false);
 
   useEffect(() => {
     if (!loading && user) {
@@ -41,7 +43,6 @@ function AuthPage() {
       toast.success("Signed in");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Sign in failed";
-      // Make Firebase error messages friendlier
       if (msg.includes("invalid-credential") || msg.includes("wrong-password") || msg.includes("user-not-found")) {
         toast.error("Invalid email or password");
       } else {
@@ -61,9 +62,7 @@ function AuthPage() {
       contact_number: fd.get("contact_number"),
       password: fd.get("password"),
     });
-    if (!parsed.success) {
-      return toast.error(parsed.error.issues[0].message);
-    }
+    if (!parsed.success) return toast.error(parsed.error.issues[0].message);
     setBusy(true);
     try {
       await signUp(parsed.data);
@@ -81,62 +80,124 @@ function AuthPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-16 flex justify-center">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-6">
-          <div className="h-12 w-12 mx-auto rounded-xl bg-[image:var(--gradient-hero)] flex items-center justify-center shadow-[var(--shadow-glow)]">
-            <Shield className="h-6 w-6 text-primary-foreground" />
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-blue-950 to-slate-900 flex items-center justify-center px-4 py-12 relative overflow-hidden">
+      {/* Background orbs */}
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute top-0 left-1/4 h-72 w-72 rounded-full bg-blue-500/20 blur-3xl animate-pulse" />
+        <div className="absolute bottom-0 right-1/4 h-64 w-64 rounded-full bg-cyan-400/15 blur-3xl animate-pulse [animation-delay:1.5s]" />
+      </div>
+
+      <div className="relative w-full max-w-md">
+        {/* Logo + heading */}
+        <div className="text-center mb-8">
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/40 mb-4 hover:scale-110 transition-transform duration-300">
+            <Shield className="h-8 w-8 text-white" />
           </div>
-          <h1 className="text-2xl font-bold mt-3">Welcome to SafeTrace</h1>
-          <p className="text-sm text-muted-foreground">Secure incident reporting for citizens & officials.</p>
+          <h1 className="text-3xl font-extrabold text-white">Welcome to SafeTrace</h1>
+          <p className="text-blue-200/70 mt-1 text-sm">Secure incident reporting for citizens & officials.</p>
         </div>
 
-        <Tabs defaultValue="login" className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <TabsList className="grid grid-cols-2 mb-4">
-            <TabsTrigger value="login">Sign in</TabsTrigger>
-            <TabsTrigger value="signup">Create account</TabsTrigger>
-          </TabsList>
+        {/* Card */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-xl shadow-2xl shadow-blue-900/40 p-7">
+          <Tabs defaultValue="login">
+            <TabsList className="grid grid-cols-2 mb-6 bg-white/10 rounded-xl p-1">
+              <TabsTrigger
+                value="login"
+                className="rounded-lg text-blue-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Sign in
+              </TabsTrigger>
+              <TabsTrigger
+                value="signup"
+                className="rounded-lg text-blue-200 data-[state=active]:bg-gradient-to-r data-[state=active]:from-blue-500 data-[state=active]:to-cyan-500 data-[state=active]:text-white data-[state=active]:shadow-md transition-all duration-200"
+              >
+                Create account
+              </TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="login">
-            <form onSubmit={handleLogin} className="space-y-3">
-              <div>
-                <Label htmlFor="li-email">Email</Label>
-                <Input id="li-email" name="email" type="email" required />
-              </div>
-              <div>
-                <Label htmlFor="li-password">Password</Label>
-                <Input id="li-password" name="password" type="password" required />
-              </div>
-              <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "Signing in…" : "Sign in"}
-              </Button>
-            </form>
-          </TabsContent>
+            {/* Sign in */}
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <Label htmlFor="li-email" className="text-blue-100 text-sm">Email</Label>
+                  <Input
+                    id="li-email" name="email" type="email" required
+                    className="mt-1 bg-white/10 border-white/20 text-white placeholder:text-blue-300/40 focus:border-blue-400 focus:ring-blue-400/30 transition-colors"
+                    placeholder="you@example.com"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="li-password" className="text-blue-100 text-sm">Password</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="li-password" name="password" type={showPw ? "text" : "password"} required
+                      className="bg-white/10 border-white/20 text-white placeholder:text-blue-300/40 focus:border-blue-400 focus:ring-blue-400/30 pr-10 transition-colors"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300/60 hover:text-blue-200 transition-colors"
+                    >
+                      {showPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full mt-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white border-0 shadow-lg shadow-blue-500/30 hover:shadow-blue-400/40 hover:scale-[1.02] transition-all duration-200"
+                  disabled={busy}
+                >
+                  {busy ? "Signing in…" : "Sign in"}
+                </Button>
+              </form>
+            </TabsContent>
 
-          <TabsContent value="signup">
-            <form onSubmit={handleSignup} className="space-y-3">
-              <div>
-                <Label htmlFor="su-name">Full name</Label>
-                <Input id="su-name" name="full_name" required />
-              </div>
-              <div>
-                <Label htmlFor="su-email">Email</Label>
-                <Input id="su-email" name="email" type="email" required />
-              </div>
-              <div>
-                <Label htmlFor="su-contact">Contact number</Label>
-                <Input id="su-contact" name="contact_number" required />
-              </div>
-              <div>
-                <Label htmlFor="su-password">Password (min 8 chars)</Label>
-                <Input id="su-password" name="password" type="password" required />
-              </div>
-              <Button type="submit" className="w-full" disabled={busy}>
-                {busy ? "Creating…" : "Create account"}
-              </Button>
-            </form>
-          </TabsContent>
-        </Tabs>
+            {/* Create account */}
+            <TabsContent value="signup">
+              <form onSubmit={handleSignup} className="space-y-4">
+                {[
+                  { id: "su-name",    name: "full_name",       label: "Full name",      type: "text",     placeholder: "Juan dela Cruz" },
+                  { id: "su-email",   name: "email",           label: "Email",          type: "email",    placeholder: "you@example.com" },
+                  { id: "su-contact", name: "contact_number",  label: "Contact number", type: "tel",      placeholder: "+63 912 345 6789" },
+                ].map((f) => (
+                  <div key={f.id}>
+                    <Label htmlFor={f.id} className="text-blue-100 text-sm">{f.label}</Label>
+                    <Input
+                      id={f.id} name={f.name} type={f.type} required
+                      placeholder={f.placeholder}
+                      className="mt-1 bg-white/10 border-white/20 text-white placeholder:text-blue-300/40 focus:border-blue-400 focus:ring-blue-400/30 transition-colors"
+                    />
+                  </div>
+                ))}
+                <div>
+                  <Label htmlFor="su-password" className="text-blue-100 text-sm">Password <span className="text-blue-300/50">(min 8 chars)</span></Label>
+                  <div className="relative mt-1">
+                    <Input
+                      id="su-password" name="password" type={showPwReg ? "text" : "password"} required
+                      className="bg-white/10 border-white/20 text-white placeholder:text-blue-300/40 focus:border-blue-400 focus:ring-blue-400/30 pr-10 transition-colors"
+                      placeholder="••••••••"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPwReg((v) => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-blue-300/60 hover:text-blue-200 transition-colors"
+                    >
+                      {showPwReg ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                </div>
+                <Button
+                  type="submit"
+                  className="w-full mt-2 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white border-0 shadow-lg shadow-blue-500/30 hover:shadow-blue-400/40 hover:scale-[1.02] transition-all duration-200"
+                  disabled={busy}
+                >
+                  {busy ? "Creating…" : "Create account"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
+        </div>
       </div>
     </div>
   );

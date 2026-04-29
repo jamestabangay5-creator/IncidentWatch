@@ -155,6 +155,8 @@ function ManageReports() {
       await updateDoc(doc(db, "reports", id), {
         status,
         updated_at: serverTimestamp(),
+        // Store resolved_at timestamp so the map can apply a TTL filter
+        ...(status === "Resolved" ? { resolved_at: serverTimestamp() } : {}),
       });
 
       await addDoc(collection(db, "audit_logs"), {
@@ -186,143 +188,124 @@ function ManageReports() {
   const visible = filter === "All" ? rows : rows.filter((r) => r.status === filter);
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-sm text-muted-foreground">Admin</p>
-          <h1 className="text-3xl font-bold tracking-tight">Manage reports</h1>
-          {!loading && !error && (
-            <p className="text-sm text-muted-foreground mt-0.5">
-              {rows.length} total · live updates enabled
-            </p>
-          )}
-        </div>
-        <div className="flex items-center gap-2">
-          <Select value={filter} onValueChange={setFilter}>
-            <SelectTrigger className="w-44">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="All">All statuses</SelectItem>
-              {STATUSES.map((s) => (
-                <SelectItem key={s} value={s}>{s}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white">
+        <div className="container mx-auto px-4 py-10">
+          <div className="flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <p className="text-blue-300/70 text-sm font-medium">Admin</p>
+              <h1 className="text-3xl font-extrabold tracking-tight">Manage Reports</h1>
+              {!loading && !error && (
+                <p className="text-blue-200/50 text-sm mt-0.5">
+                  {rows.length} total · <span className="text-emerald-400">● live</span>
+                </p>
+              )}
+            </div>
+            <Select value={filter} onValueChange={setFilter}>
+              <SelectTrigger className="w-44 bg-white/10 border-white/20 text-white">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="All">All statuses</SelectItem>
+                {STATUSES.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 grid gap-4">
-        {loading ? (
-          <div className="rounded-xl border border-border bg-card p-12 text-center text-muted-foreground">
-            Loading reports…
-          </div>
-        ) : error ? (
-          <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-8 text-center">
-            <p className="text-sm font-medium text-destructive mb-1">Failed to load reports</p>
-            <p className="text-xs text-muted-foreground mb-4">{error}</p>
-            <p className="text-xs text-muted-foreground">
-              Check Firestore Rules — the <code>reports</code> collection must allow read for authenticated users.
-            </p>
-            <Button
-              size="sm"
-              variant="outline"
-              className="mt-4"
-              onClick={() => window.location.reload()}
-            >
-              <RefreshCw className="h-3 w-3 mr-1" /> Retry
-            </Button>
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
-            No reports{filter !== "All" ? ` with status "${filter}"` : ""}.
-          </div>
-        ) : (
-          visible.map((r) => (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-5">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold">{r.incident_type}</h3>
-                    <Badge variant="outline" className={statusColor[r.status]}>
-                      {r.status}
-                    </Badge>
+      <div className="container mx-auto px-4 py-8">
+        <div className="grid gap-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="h-8 w-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+            </div>
+          ) : error ? (
+            <div className="rounded-2xl border border-red-200 bg-red-50 p-8 text-center">
+              <p className="text-sm font-semibold text-red-600 mb-1">Failed to load reports</p>
+              <p className="text-xs text-slate-500 mb-4">{error}</p>
+              <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+                <RefreshCw className="h-3 w-3 mr-1" /> Retry
+              </Button>
+            </div>
+          ) : visible.length === 0 ? (
+            <div className="rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-16 text-center">
+              <p className="text-slate-500 font-medium">No reports{filter !== "All" ? ` with status "${filter}"` : ""}.</p>
+            </div>
+          ) : (
+            visible.map((r) => (
+              <div key={r.id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
+                <div className={`h-1 w-full ${
+                  r.status === "Pending" ? "bg-amber-400" :
+                  r.status === "Verified" ? "bg-blue-500" :
+                  r.status === "Resolved" ? "bg-emerald-500" : "bg-red-500"
+                }`} />
+                <div className="p-5">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-bold text-slate-800">{r.incident_type}</h3>
+                        <Badge variant="outline" className={statusColor[r.status]}>{r.status}</Badge>
+                      </div>
+                      <p className="text-xs text-slate-400 mt-1">
+                        By {r.reporter_name} ({r.reporter_email}) · {format(new Date(r.incident_date), "PPP")}
+                      </p>
+                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{r.description}</p>
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                        <span className="inline-flex items-center gap-1">
+                          <MapPin className="h-3 w-3 text-blue-400" />
+                          {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)}
+                        </span>
+                        {r.hash_value && (
+                          <span className="inline-flex items-center gap-1 font-mono">
+                            <Hash className="h-3 w-3" /> {r.hash_value.slice(0, 32)}…
+                          </span>
+                        )}
+                      </div>
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <a href={`https://www.google.com/maps/dir/?api=1&destination=${r.latitude},${r.longitude}`} target="_blank" rel="noreferrer">
+                          <Button size="sm" type="button" className="gap-1.5 bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white border-0 shadow-sm hover:scale-105 transition-all duration-200">
+                            <Navigation className="h-3.5 w-3.5" /> Navigate
+                          </Button>
+                        </a>
+                        <a href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`} target="_blank" rel="noreferrer">
+                          <Button size="sm" variant="outline" type="button" className="gap-1.5 hover:scale-105 transition-all duration-200">
+                            <MapPin className="h-3.5 w-3.5" /> View on map
+                          </Button>
+                        </a>
+                      </div>
+                      {r.image_url && (
+                        <img src={r.image_url} alt="evidence" className="mt-3 h-28 rounded-xl border border-slate-200 object-cover shadow-sm hover:scale-[1.02] transition-transform duration-200 cursor-pointer" />
+                      )}
+                    </div>
+                    <div className="flex flex-col gap-2 min-w-[160px]">
+                      {ALLOWED_TRANSITIONS[r.status]?.length === 0 ? (
+                        <span className="text-xs text-slate-400 text-right italic px-1">No further actions</span>
+                      ) : (
+                        (ALLOWED_TRANSITIONS[r.status] ?? []).map((s) => (
+                          <Button
+                            key={s} size="sm"
+                            className={
+                              s === "Resolved"
+                                ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0 shadow-sm hover:scale-105 transition-all duration-200"
+                                : s === "Rejected"
+                                ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white border-0 shadow-sm hover:scale-105 transition-all duration-200"
+                                : "border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:scale-105 transition-all duration-200"
+                            }
+                            onClick={() => updateStatus(r.id, s)}
+                          >
+                            Mark {s}
+                          </Button>
+                        ))
+                      )}
+                    </div>
                   </div>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    By {r.reporter_name} ({r.reporter_email}) ·{" "}
-                    {format(new Date(r.incident_date), "PPP")}
-                  </p>
-                  <p className="mt-2 text-sm">{r.description}</p>
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {Number(r.latitude).toFixed(4)}, {Number(r.longitude).toFixed(4)}
-                    </span>
-                    {r.hash_value && (
-                      <span className="inline-flex items-center gap-1 font-mono">
-                        <Hash className="h-3 w-3" /> {r.hash_value.slice(0, 32)}…
-                      </span>
-                    )}
-                  </div>
-                  {/* Navigation buttons */}
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <a
-                      href={`https://www.google.com/maps/dir/?api=1&destination=${r.latitude},${r.longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Button size="sm" variant="outline" type="button" className="gap-1.5 text-primary border-primary/40 hover:bg-primary/10">
-                        <Navigation className="h-3.5 w-3.5" />
-                        Navigate
-                      </Button>
-                    </a>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`}
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <Button size="sm" variant="outline" type="button" className="gap-1.5">
-                        <MapPin className="h-3.5 w-3.5" />
-                        View on map
-                      </Button>
-                    </a>
-                  </div>
-                  {r.image_url && (
-                    <img
-                      src={r.image_url}
-                      alt="evidence"
-                      className="mt-2 h-24 rounded-md border border-border object-cover"
-                    />
-                  )}
-                </div>
-                <div className="flex flex-col gap-2 min-w-[160px]">
-                  {ALLOWED_TRANSITIONS[r.status]?.length === 0 ? (
-                    <span className="text-xs text-muted-foreground text-right italic px-1">
-                      No further actions
-                    </span>
-                  ) : (
-                    (ALLOWED_TRANSITIONS[r.status] ?? []).map((s) => (
-                      <Button
-                        key={s}
-                        size="sm"
-                        variant={
-                          s === "Resolved"
-                            ? "default"
-                            : s === "Rejected"
-                            ? "destructive"
-                            : "outline"
-                        }
-                        onClick={() => updateStatus(r.id, s)}
-                      >
-                        Mark {s}
-                      </Button>
-                    ))
-                  )}
                 </div>
               </div>
-            </div>
-          ))
-        )}
+            ))
+          )}
+        </div>
       </div>
     </div>
   );

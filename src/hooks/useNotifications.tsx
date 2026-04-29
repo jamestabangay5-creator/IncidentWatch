@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import {
   collection,
   query,
@@ -12,6 +12,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { playNotificationChime, playAlertBeep, playReadPop } from "@/lib/sounds";
 
 export interface Notification {
   id: string;
@@ -21,19 +22,21 @@ export interface Notification {
 }
 
 export function useNotifications() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const [notifications, setNotifications] = useState<Notification[]>([]);
 
-  // ── realtime subscription (replaces both load + supabase channel) ─────────
+  // Track IDs we've already seen so we only play sound for genuinely new ones
+  const seenIds = useRef<Set<string>>(new Set());
+  // Skip sound on the very first load (page refresh shouldn't beep)
+  const initialLoad = useRef(true);
+
   useEffect(() => {
     if (!user) return;
 
-    // Query by user_id only — no composite index needed.
-    // Limit + client-side sort to get the 30 most recent.
     const q = query(
       collection(db, "notifications"),
       where("user_id", "==", user.uid),
-      limit(50), // fetch a bit more so client-side sort gives accurate top 30
+      limit(50),
     );
 
     const unsub = onSnapshot(q, (snap) => {
@@ -49,28 +52,52 @@ export function useNotifications() {
         })
         .sort((a, b) => b.created_at.localeCompare(a.created_at))
         .slice(0, 30);
+
+      if (initialLoad.current) {
+        // Populate seenIds on first load — no sound
+        sorted.forEach((n) => seenIds.current.add(n.id));
+        initialLoad.current = false;
+      } else {
+        // Find genuinely new unread notifications
+        const newUnread = sorted.filter(
+          (n) => !n.read && !seenIds.current.has(n.id),
+        );
+
+        if (newUnread.length > 0) {
+          newUnread.forEach((n) => seenIds.current.add(n.id));
+
+          // Admins get the urgent alert beep for new reports
+          // Regular users get the soft chime for status updates
+          const isNewReport = newUnread.some((n) =>
+            n.message.toLowerCase().startsWith("new report"),
+          );
+
+          if (isAdmin && isNewReport) {
+            playAlertBeep();
+          } else {
+            playNotificationChime();
+          }
+        }
+      }
+
       setNotifications(sorted);
     });
 
     return unsub;
-  }, [user]);
+  }, [user, isAdmin]);
 
-  const markRead = useCallback(
-    async (id: string) => {
-      // Optimistic
-      setNotifications((prev) =>
-        prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-      );
-      await updateDoc(doc(db, "notifications", id), { read: true });
-    },
-    [],
-  );
+  const markRead = useCallback(async (id: string) => {
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
+    playReadPop();
+    await updateDoc(doc(db, "notifications", id), { read: true });
+  }, []);
 
   const markAllRead = useCallback(async () => {
     if (!user) return;
-    // Optimistic
     setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-    // Batch update all unread
+    playReadPop();
     const q = query(
       collection(db, "notifications"),
       where("user_id", "==", user.uid),

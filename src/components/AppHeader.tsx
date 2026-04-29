@@ -9,8 +9,11 @@ import {
   Menu,
   X,
   Bell,
+  BellOff,
   Users,
   ShieldCheck,
+  Volume2,
+  VolumeX,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -62,7 +65,24 @@ function MobileLink({
 function NotificationBell() {
   const { notifications, unreadCount, markAllRead, markRead } = useNotifications();
   const [open, setOpen] = useState(false);
+  const [muted, setMuted] = useState(() => {
+    try { return localStorage.getItem("notif-sound-muted") === "1"; } catch { return false; }
+  });
   const ref = useRef<HTMLDivElement>(null);
+
+  // Sync mute flag to window so sounds.ts can read it
+  useEffect(() => {
+    (window as unknown as Record<string, unknown>).__notifMuted = muted;
+  }, [muted]);
+
+  function toggleMute() {
+    setMuted((v) => {
+      const next = !v;
+      try { localStorage.setItem("notif-sound-muted", next ? "1" : "0"); } catch {}
+      (window as unknown as Record<string, unknown>).__notifMuted = next;
+      return next;
+    });
+  }
 
   // Close on outside click
   useEffect(() => {
@@ -75,18 +95,14 @@ function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  function handleOpen() {
-    setOpen((v) => !v);
-  }
-
   return (
     <div ref={ref} className="relative">
       <button
-        onClick={handleOpen}
+        onClick={() => setOpen((v) => !v)}
         aria-label={`Notifications${unreadCount > 0 ? `, ${unreadCount} unread` : ""}`}
         className="relative flex h-9 w-9 items-center justify-center rounded-md text-foreground/80 hover:bg-secondary transition-colors"
       >
-        <Bell className="h-4 w-4" />
+        {muted ? <BellOff className="h-4 w-4 opacity-50" /> : <Bell className="h-4 w-4" />}
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-destructive text-[10px] font-bold text-destructive-foreground leading-none">
             {unreadCount > 9 ? "9+" : unreadCount}
@@ -98,14 +114,23 @@ function NotificationBell() {
         <div className="absolute right-0 top-11 z-[1002] w-80 rounded-xl border border-border bg-card shadow-lg overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border">
             <span className="text-sm font-semibold">Notifications</span>
-            {unreadCount > 0 && (
+            <div className="flex items-center gap-2">
+              {/* Sound mute toggle */}
               <button
-                onClick={() => markAllRead()}
-                className="text-xs text-primary hover:underline"
+                onClick={toggleMute}
+                title={muted ? "Unmute notification sounds" : "Mute notification sounds"}
+                className={`flex h-7 w-7 items-center justify-center rounded-md transition-colors ${
+                  muted ? "text-muted-foreground hover:bg-secondary" : "text-primary hover:bg-primary/10"
+                }`}
               >
-                Mark all read
+                {muted ? <VolumeX className="h-3.5 w-3.5" /> : <Volume2 className="h-3.5 w-3.5" />}
               </button>
-            )}
+              {unreadCount > 0 && (
+                <button onClick={() => markAllRead()} className="text-xs text-primary hover:underline">
+                  Mark all read
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="max-h-80 overflow-y-auto">

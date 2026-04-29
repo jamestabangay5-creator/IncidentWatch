@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
-import { MapPin, Hash, Navigation, ZoomIn } from "lucide-react";
+import { MapPin, Hash, Navigation, ZoomIn, FileText } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -30,41 +30,35 @@ interface ReportRow {
   hash_value?: string;
 }
 
-const statusColor: Record<string, string> = {
-  Pending:  "bg-yellow-100 text-yellow-800 border-yellow-300",
-  Verified: "bg-blue-100 text-blue-800 border-blue-300",
-  Resolved: "bg-green-100 text-green-800 border-green-300",
-  Rejected: "bg-red-100 text-red-800 border-red-300",
+const statusStyle: Record<string, { badge: string; dot: string }> = {
+  Pending:  { badge: "bg-amber-100 text-amber-800 border-amber-300",   dot: "bg-amber-400" },
+  Verified: { badge: "bg-blue-100 text-blue-800 border-blue-300",      dot: "bg-blue-500" },
+  Resolved: { badge: "bg-emerald-100 text-emerald-800 border-emerald-300", dot: "bg-emerald-500" },
+  Rejected: { badge: "bg-red-100 text-red-800 border-red-300",         dot: "bg-red-500" },
 };
 
-// ── Lightbox for full-size image view ────────────────────────────────────────
 function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
   useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (e.key === "Escape") onClose();
-    }
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [onClose]);
 
   return (
     <div
-      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+      className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/85 backdrop-blur-sm p-4 animate-fade-in"
       onClick={onClose}
     >
       <img
-        src={src}
-        alt="evidence full size"
-        className="max-w-full max-h-full rounded-xl shadow-2xl object-contain"
+        src={src} alt="evidence full size"
+        className="max-w-full max-h-full rounded-2xl shadow-2xl object-contain"
         onClick={(e) => e.stopPropagation()}
       />
       <button
         onClick={onClose}
-        className="absolute top-4 right-4 text-white bg-black/50 rounded-full h-9 w-9 flex items-center justify-center text-lg hover:bg-black/70 transition-colors"
+        className="absolute top-4 right-4 text-white bg-white/20 backdrop-blur rounded-full h-10 w-10 flex items-center justify-center hover:bg-white/30 transition-colors text-lg"
         aria-label="Close"
-      >
-        ✕
-      </button>
+      >✕</button>
     </div>
   );
 }
@@ -78,9 +72,7 @@ function MyReports() {
   useEffect(() => {
     if (!user) return;
     (async () => {
-      const snap = await getDocs(
-        query(collection(db, "reports"), where("user_id", "==", user.uid)),
-      );
+      const snap = await getDocs(query(collection(db, "reports"), where("user_id", "==", user.uid)));
       const sorted = snap.docs
         .map((d) => {
           const data = d.data();
@@ -104,97 +96,119 @@ function MyReports() {
   }, [user]);
 
   return (
-    <div className="container mx-auto px-4 py-10">
-      <h1 className="text-3xl font-bold tracking-tight">My reports</h1>
-      <p className="text-muted-foreground mt-1">All reports you've submitted with their blockchain seals.</p>
-
-      {loading ? (
-        <p className="mt-8 text-muted-foreground">Loading…</p>
-      ) : rows.length === 0 ? (
-        <div className="mt-10 rounded-xl border border-dashed border-border p-12 text-center text-muted-foreground">
-          You haven't submitted any reports yet.
-        </div>
-      ) : (
-        <div className="mt-6 grid gap-4">
-          {rows.map((r) => (
-            <div key={r.id} className="rounded-xl border border-border bg-card p-5 hover:shadow-[var(--shadow-elevated)] transition-shadow">
-              {/* Header */}
-              <div className="flex items-start justify-between gap-2 flex-wrap">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <h3 className="font-semibold">{r.incident_type}</h3>
-                    <Badge variant="outline" className={statusColor[r.status]}>
-                      {r.status}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {format(new Date(r.incident_date), "PPP")} · submitted{" "}
-                    {r.created_at ? format(new Date(r.created_at), "PP") : "—"}
-                  </p>
-                </div>
-              </div>
-
-              {/* Description */}
-              <p className="mt-3 text-sm">{r.description}</p>
-
-              {/* Inline image — click to expand */}
-              {r.image_url && (
-                <div className="mt-3 relative group w-fit">
-                  <img
-                    src={r.image_url}
-                    alt="evidence"
-                    className="h-40 w-auto max-w-full rounded-lg border border-border object-cover cursor-pointer hover:opacity-90 transition-opacity"
-                    onClick={() => setLightboxSrc(r.image_url)}
-                  />
-                  <button
-                    onClick={() => setLightboxSrc(r.image_url)}
-                    className="absolute top-2 right-2 bg-black/50 text-white rounded-md px-2 py-1 text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  >
-                    <ZoomIn className="h-3 w-3" /> View full
-                  </button>
-                </div>
-              )}
-
-              {/* Location + hash */}
-              <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1">
-                  <MapPin className="h-3 w-3" /> {r.latitude.toFixed(4)}, {r.longitude.toFixed(4)}
-                </span>
-                {r.hash_value && (
-                  <span className="inline-flex items-center gap-1 font-mono">
-                    <Hash className="h-3 w-3" /> {r.hash_value.slice(0, 24)}…
-                  </span>
-                )}
-              </div>
-
-              {/* Navigation buttons */}
-              <div className="mt-2 flex flex-wrap gap-2">
-                <a
-                  href={`https://www.google.com/maps/dir/?api=1&destination=${r.latitude},${r.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-primary/40 text-primary hover:bg-primary/10 transition-colors"
-                >
-                  <Navigation className="h-3 w-3" /> Navigate
-                </a>
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium border border-border text-muted-foreground hover:bg-secondary transition-colors"
-                >
-                  <MapPin className="h-3 w-3" /> View on map
-                </a>
-              </div>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100">
+      {/* Header banner */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white">
+        <div className="container mx-auto px-4 py-10">
+          <div className="flex items-center gap-3 mb-1">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+              <FileText className="h-5 w-5 text-white" />
             </div>
-          ))}
+            <h1 className="text-3xl font-extrabold tracking-tight">My Reports</h1>
+          </div>
+          <p className="text-blue-200/60 text-sm mt-1 ml-13">All reports you've submitted with their blockchain seals.</p>
         </div>
-      )}
+      </div>
 
-      {/* Lightbox */}
-      {lightboxSrc && (
-        <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />
-      )}
+      <div className="container mx-auto px-4 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="h-8 w-8 rounded-full border-4 border-blue-500 border-t-transparent animate-spin" />
+          </div>
+        ) : rows.length === 0 ? (
+          <div className="mt-4 rounded-2xl border-2 border-dashed border-slate-300 bg-white/60 p-16 text-center">
+            <FileText className="h-12 w-12 text-slate-300 mx-auto mb-3" />
+            <p className="text-slate-500 font-medium">No reports yet</p>
+            <p className="text-slate-400 text-sm mt-1">Submit your first incident report to get started.</p>
+          </div>
+        ) : (
+          <div className="grid gap-4">
+            {rows.map((r) => {
+              const style = statusStyle[r.status] ?? statusStyle.Pending;
+              return (
+                <div
+                  key={r.id}
+                  className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden"
+                >
+                  {/* Colored top accent bar */}
+                  <div className={`h-1 w-full ${style.dot} opacity-60`} />
+
+                  <div className="p-5">
+                    {/* Header */}
+                    <div className="flex items-start justify-between gap-2 flex-wrap">
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className={`inline-block h-2 w-2 rounded-full ${style.dot}`} />
+                          <h3 className="font-bold text-slate-800">{r.incident_type}</h3>
+                          <Badge variant="outline" className={style.badge}>{r.status}</Badge>
+                        </div>
+                        <p className="text-xs text-slate-400 mt-1">
+                          {format(new Date(r.incident_date), "PPP")} · submitted{" "}
+                          {r.created_at ? format(new Date(r.created_at), "PP") : "—"}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Description */}
+                    <p className="mt-3 text-sm text-slate-600 leading-relaxed">{r.description}</p>
+
+                    {/* Image */}
+                    {r.image_url && (
+                      <div className="mt-3 relative group/img w-fit">
+                        <img
+                          src={r.image_url} alt="evidence"
+                          className="h-40 w-auto max-w-full rounded-xl border border-slate-200 object-cover cursor-pointer hover:opacity-90 hover:scale-[1.02] transition-all duration-200"
+                          onClick={() => setLightboxSrc(r.image_url)}
+                        />
+                        <button
+                          onClick={() => setLightboxSrc(r.image_url)}
+                          className="absolute top-2 right-2 bg-black/50 text-white rounded-lg px-2 py-1 text-xs flex items-center gap-1 opacity-0 group-hover/img:opacity-100 transition-opacity"
+                        >
+                          <ZoomIn className="h-3 w-3" /> View full
+                        </button>
+                      </div>
+                    )}
+
+                    {/* Location + hash */}
+                    <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
+                      <span className="inline-flex items-center gap-1">
+                        <MapPin className="h-3 w-3 text-blue-400" />
+                        {r.latitude.toFixed(4)}, {r.longitude.toFixed(4)}
+                      </span>
+                      {r.hash_value && (
+                        <span className="inline-flex items-center gap-1 font-mono">
+                          <Hash className="h-3 w-3 text-slate-400" />
+                          {r.hash_value.slice(0, 24)}…
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Navigation */}
+                    <div className="mt-3 flex flex-wrap gap-2">
+                      <a
+                        href={`https://www.google.com/maps/dir/?api=1&destination=${r.latitude},${r.longitude}`}
+                        target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-400 hover:to-cyan-400 hover:scale-105 shadow-sm shadow-blue-500/20 transition-all duration-200"
+                      >
+                        <Navigation className="h-3 w-3" /> Navigate
+                      </a>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${r.latitude},${r.longitude}`}
+                        target="_blank" rel="noreferrer"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 text-slate-600 hover:bg-slate-50 hover:border-slate-300 hover:scale-105 transition-all duration-200"
+                      >
+                        <MapPin className="h-3 w-3" /> View on map
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+
+      {lightboxSrc && <ImageLightbox src={lightboxSrc} onClose={() => setLightboxSrc(null)} />}
     </div>
   );
 }

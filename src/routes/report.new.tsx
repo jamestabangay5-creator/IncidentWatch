@@ -2,14 +2,9 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
+import { FilePlus2, Shield } from "lucide-react";
 import {
-  collection,
-  addDoc,
-  getDocs,
-  query,
-  orderBy,
-  limit,
-  serverTimestamp,
+  collection, addDoc, getDocs, query, orderBy, limit, serverTimestamp,
 } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,37 +14,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { buildBlock, GENESIS_HASH } from "@/lib/blockchain";
 
 export const Route = createFileRoute("/report/new")({
   head: () => ({ meta: [{ title: "Submit Report — SafeTrace" }] }),
-  component: () => (
-    <RequireAuth>
-      <NewReport />
-    </RequireAuth>
-  ),
+  component: () => <RequireAuth><NewReport /></RequireAuth>,
 });
 
 const INCIDENT_TYPES = [
-  "Theft",
-  "Vandalism",
-  "Assault",
-  "Traffic accident",
-  "Fire",
-  "Suspicious activity",
-  "Public disturbance",
-  "Environmental hazard",
-  "Other",
+  "Theft","Vandalism","Assault","Traffic accident","Fire",
+  "Suspicious activity","Public disturbance","Environmental hazard","Other",
 ];
 
-const MAX_IMAGE_SIZE_MB = 0.8; // keep Firestore doc under 1MB limit
+const MAX_IMAGE_SIZE_MB = 0.8;
 
 const schema = z.object({
   incident_type: z.string().min(1, "Choose an incident type"),
@@ -59,7 +37,6 @@ const schema = z.object({
   longitude: z.number().min(-180).max(180),
 });
 
-/** Resize + convert image file to a base64 data URL (JPEG, max 800px wide). */
 async function imageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const img = new Image();
@@ -71,8 +48,7 @@ async function imageToBase64(file: File): Promise<string> {
       const canvas = document.createElement("canvas");
       canvas.width = Math.round(img.width * scale);
       canvas.height = Math.round(img.height * scale);
-      const ctx = canvas.getContext("2d")!;
-      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.getContext("2d")!.drawImage(img, 0, 0, canvas.width, canvas.height);
       resolve(canvas.toDataURL("image/jpeg", 0.75));
     };
     img.onerror = reject;
@@ -93,13 +69,9 @@ function NewReport() {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     if (f) {
-      const sizeMB = f.size / 1024 / 1024;
-      if (sizeMB > 5) {
+      if (f.size / 1024 / 1024 > 5) {
         toast.error("Image must be under 5 MB");
-        setFile(null);
-        setPreview(null);
-        e.target.value = "";
-        return;
+        setFile(null); setPreview(null); e.target.value = ""; return;
       }
       setPreview(URL.createObjectURL(f));
     } else {
@@ -111,7 +83,6 @@ function NewReport() {
     e.preventDefault();
     if (!user) return;
     const fd = new FormData(e.currentTarget);
-
     const parsed = schema.safeParse({
       incident_type: type,
       description: String(fd.get("description") ?? ""),
@@ -119,33 +90,22 @@ function NewReport() {
       latitude: coords?.lat ?? NaN,
       longitude: coords?.lng ?? NaN,
     });
-    if (!parsed.success) {
-      return toast.error(parsed.error.issues[0].message);
-    }
+    if (!parsed.success) return toast.error(parsed.error.issues[0].message);
 
     setBusy(true);
     try {
-      // 1. Convert image to base64 (avoids Firebase Storage CORS entirely)
       let imageUrl: string | null = null;
       if (file) {
         imageUrl = await imageToBase64(file);
-        const sizeKB = Math.round((imageUrl.length * 3) / 4 / 1024);
-        if (sizeKB > MAX_IMAGE_SIZE_MB * 1024) {
+        if (Math.round((imageUrl.length * 3) / 4 / 1024) > MAX_IMAGE_SIZE_MB * 1024) {
           toast.error("Image is too large after compression. Please use a smaller image.");
-          setBusy(false);
-          return;
+          setBusy(false); return;
         }
       }
 
-      // 2. Fetch last blockchain hash for chain integrity
-      const lastSnap = await getDocs(
-        query(collection(db, "blockchain_logs"), orderBy("block_index", "desc"), limit(1)),
-      );
-      const previousHash = lastSnap.empty
-        ? GENESIS_HASH
-        : (lastSnap.docs[0].data().hash_value as string);
+      const lastSnap = await getDocs(query(collection(db, "blockchain_logs"), orderBy("block_index", "desc"), limit(1)));
+      const previousHash = lastSnap.empty ? GENESIS_HASH : (lastSnap.docs[0].data().hash_value as string);
 
-      // 3. Insert report
       const reportRef = await addDoc(collection(db, "reports"), {
         user_id: user.uid,
         incident_type: parsed.data.incident_type,
@@ -159,49 +119,29 @@ function NewReport() {
         updated_at: serverTimestamp(),
       });
 
-      // 3b. Notify all admins about the new report
       const adminRolesSnap = await getDocs(collection(db, "user_role"));
-      const adminNotifs = adminRolesSnap.docs
-        .filter((d) => {
-          const raw = d.data().roles;
-          const roles: string[] = Array.isArray(raw) ? raw : typeof raw === "string" ? [raw] : [];
-          return roles.includes("admin");
-        })
-        .map((d) =>
-          addDoc(collection(db, "notifications"), {
+      await Promise.all(
+        adminRolesSnap.docs
+          .filter((d) => { const r = d.data().roles; return (Array.isArray(r) ? r : [r]).includes("admin"); })
+          .map((d) => addDoc(collection(db, "notifications"), {
             user_id: d.id,
-            message: `New report submitted: "${parsed.data.incident_type}" — ${parsed.data.description.slice(0, 60)}${parsed.data.description.length > 60 ? "…" : ""}`,
-            read: false,
-            created_at: serverTimestamp(),
-          }),
-        );
-      await Promise.all(adminNotifs);
+            message: `New report: "${parsed.data.incident_type}" — ${parsed.data.description.slice(0, 60)}${parsed.data.description.length > 60 ? "…" : ""}`,
+            read: false, created_at: serverTimestamp(),
+          }))
+      );
 
-      // 4. Build + store blockchain block
       const payload = {
-        report_id: reportRef.id,
-        user_id: user.uid,
-        incident_type: parsed.data.incident_type,
-        description: parsed.data.description,
-        latitude: parsed.data.latitude,
-        longitude: parsed.data.longitude,
-        incident_date: parsed.data.incident_date,
-        created_at: new Date().toISOString(),
+        report_id: reportRef.id, user_id: user.uid,
+        incident_type: parsed.data.incident_type, description: parsed.data.description,
+        latitude: parsed.data.latitude, longitude: parsed.data.longitude,
+        incident_date: parsed.data.incident_date, created_at: new Date().toISOString(),
       };
       const { dataHash, hashValue } = await buildBlock(payload, previousHash);
-
-      const nextIndex = lastSnap.empty
-        ? 0
-        : (lastSnap.docs[0].data().block_index as number) + 1;
-
+      const nextIndex = lastSnap.empty ? 0 : (lastSnap.docs[0].data().block_index as number) + 1;
       await addDoc(collection(db, "blockchain_logs"), {
-        report_id: reportRef.id,
-        block_index: nextIndex,
-        previous_hash: previousHash,
-        data_hash: dataHash,
-        hash_value: hashValue,
-        payload,
-        created_at: serverTimestamp(),
+        report_id: reportRef.id, block_index: nextIndex,
+        previous_hash: previousHash, data_hash: dataHash, hash_value: hashValue,
+        payload, created_at: serverTimestamp(),
       });
 
       toast.success("Report submitted and sealed in blockchain");
@@ -214,81 +154,113 @@ function NewReport() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-10 max-w-3xl">
-      <h1 className="text-3xl font-bold tracking-tight">Submit incident report</h1>
-      <p className="text-muted-foreground mt-1">
-        Your report will be hashed (SHA-256) and chained to the previous record for tamper-evidence.
-      </p>
-
-      <form onSubmit={handleSubmit} className="mt-8 space-y-5 bg-card border border-border rounded-xl p-6">
-        <div className="grid sm:grid-cols-2 gap-4">
-          <div>
-            <Label>Incident type</Label>
-            <Select value={type} onValueChange={setType}>
-              <SelectTrigger><SelectValue placeholder="Choose..." /></SelectTrigger>
-              <SelectContent>
-                {INCIDENT_TYPES.map((t) => (
-                  <SelectItem key={t} value={t}>{t}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-slate-100">
+      {/* Header */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-900 to-slate-900 text-white">
+        <div className="container mx-auto px-4 py-10 max-w-3xl">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center shadow-lg">
+              <FilePlus2 className="h-5 w-5 text-white" />
+            </div>
+            <div>
+              <h1 className="text-3xl font-extrabold tracking-tight">Submit Incident Report</h1>
+              <p className="text-blue-200/60 text-sm mt-0.5">Your report will be sealed with SHA-256 blockchain hashing.</p>
+            </div>
           </div>
-          <div>
-            <Label htmlFor="incident_date">Date of incident</Label>
+        </div>
+      </div>
+
+      <div className="container mx-auto px-4 py-8 max-w-3xl">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Type + Date */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">1</span>
+              Incident details
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <Label className="text-slate-700 font-medium">Incident type</Label>
+                <Select value={type} onValueChange={setType}>
+                  <SelectTrigger className="mt-1 border-slate-200 focus:border-blue-400 focus:ring-blue-400/20">
+                    <SelectValue placeholder="Choose type…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {INCIDENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="incident_date" className="text-slate-700 font-medium">Date of incident</Label>
+                <Input
+                  id="incident_date" name="incident_date" type="date" required
+                  max={new Date().toISOString().slice(0, 10)}
+                  className="mt-1 border-slate-200 focus:border-blue-400 focus:ring-blue-400/20"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Description */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">2</span>
+              Description
+            </h2>
+            <Textarea
+              id="description" name="description" rows={5} required maxLength={2000}
+              placeholder="Describe what happened in detail…"
+              className="border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
+            />
+          </div>
+
+          {/* Image */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">3</span>
+              Evidence photo <span className="text-slate-400 font-normal text-sm">(optional)</span>
+            </h2>
             <Input
-              id="incident_date"
-              name="incident_date"
-              type="date"
-              required
-              max={new Date().toISOString().slice(0, 10)}
+              id="image" type="file" accept="image/*" onChange={handleFileChange}
+              className="border-slate-200 file:bg-gradient-to-r file:from-blue-500 file:to-cyan-500 file:text-white file:border-0 file:rounded-lg file:px-3 file:py-1 file:text-xs file:font-semibold hover:file:from-blue-400 hover:file:to-cyan-400 file:transition-all"
             />
+            {preview && (
+              <img src={preview} alt="preview" className="mt-3 h-36 rounded-xl border border-slate-200 object-cover shadow-sm" />
+            )}
           </div>
-        </div>
 
-        <div>
-          <Label htmlFor="description">Description</Label>
-          <Textarea
-            id="description"
-            name="description"
-            rows={5}
-            required
-            maxLength={2000}
-            placeholder="Describe what happened…"
-          />
-        </div>
+          {/* Location */}
+          <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
+            <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
+              <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">4</span>
+              Location
+            </h2>
+            <MapPicker value={coords} onChange={setCoords} />
+            {coords && (
+              <p className="text-xs text-slate-400 mt-2 font-mono">
+                📍 {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+              </p>
+            )}
+          </div>
 
-        <div>
-          <Label htmlFor="image">Attach image (optional, max 5 MB)</Label>
-          <Input
-            id="image"
-            type="file"
-            accept="image/*"
-            onChange={handleFileChange}
-          />
-          {preview && (
-            <img
-              src={preview}
-              alt="preview"
-              className="mt-2 h-32 rounded-lg border border-border object-cover"
-            />
-          )}
-        </div>
-
-        <div>
-          <Label>Location (click on the map)</Label>
-          {/* MapPicker uses a plain div, not a form, to avoid nested form issue */}
-          <MapPicker value={coords} onChange={setCoords} />
-          {coords && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Selected: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
-            </p>
-          )}
-        </div>
-
-        <Button type="submit" disabled={busy} size="lg" className="w-full">
-          {busy ? "Sealing on blockchain…" : "Submit report"}
-        </Button>
-      </form>
+          {/* Submit */}
+          <Button
+            type="submit" disabled={busy} size="lg"
+            className="w-full bg-gradient-to-r from-blue-500 to-cyan-500 hover:from-blue-400 hover:to-cyan-400 text-white border-0 shadow-lg shadow-blue-500/30 hover:shadow-blue-400/40 hover:scale-[1.01] transition-all duration-200 text-base font-semibold"
+          >
+            {busy ? (
+              <span className="flex items-center gap-2">
+                <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                Sealing on blockchain…
+              </span>
+            ) : (
+              <span className="flex items-center gap-2">
+                <Shield className="h-4 w-4" /> Submit & seal report
+              </span>
+            )}
+          </Button>
+        </form>
+      </div>
     </div>
   );
 }
