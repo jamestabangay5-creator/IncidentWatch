@@ -2,8 +2,16 @@ import { defineConfig } from "@lovable.dev/vite-tanstack-config";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
-  // Disable Cloudflare adapter so the build targets Node.js (Vercel-compatible)
+  // Disable Cloudflare adapter — output static client bundle for Vercel
   cloudflare: false,
+  tanstackStart: {
+    prerender: {
+      enabled: true,
+      routes: ["/"],
+      autoSubfolderIndex: false,
+      failOnError: false,
+    },
+  },
   plugins: [
     VitePWA({
       registerType: "autoUpdate",
@@ -11,7 +19,7 @@ export default defineConfig({
       manifest: false,
       workbox: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp,woff,woff2}"],
-        navigateFallback: "/",
+        navigateFallback: "/index.html",
         navigateFallbackDenylist: [/^\/api/, /^\/rest/, /firestore/, /firebase/],
         runtimeCaching: [
           {
