@@ -7,9 +7,9 @@ export default defineConfig({
   tanstackStart: {
     prerender: {
       enabled: true,
-      routes: ["/"],
-      autoSubfolderIndex: false,
-      failOnError: false,
+      autoStaticPathsDiscovery: false, // only prerender explicitly listed routes
+      failOnError: false,              // don't fail build on prerender errors
+      concurrency: 1,
     },
   },
   plugins: [
