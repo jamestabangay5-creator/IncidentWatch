@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { buildBlock, GENESIS_HASH } from "@/lib/blockchain";
 
 export const Route = createFileRoute("/report/new")({
-  head: () => ({ meta: [{ title: "Submit Report — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Submit Report — Nexus" }] }),
   component: () => <RequireAuth><NewReport /></RequireAuth>,
 });
 

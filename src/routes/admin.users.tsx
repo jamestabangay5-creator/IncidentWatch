@@ -19,7 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/admin/users")({
-  head: () => ({ meta: [{ title: "Users — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Users — Nexus" }] }),
   component: () => (
     <RequireAuth admin>
       <Users />

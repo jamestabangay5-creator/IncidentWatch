@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export const Route = createFileRoute("/auth")({
-  head: () => ({ meta: [{ title: "Sign in — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Sign in — Nexus" }] }),
   component: AuthPage,
 });
 
@@ -91,9 +91,9 @@ function AuthPage() {
         {/* Logo + heading */}
         <div className="text-center mb-8">
           <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg shadow-blue-500/40 mb-4 hover:scale-110 transition-transform duration-300 overflow-hidden">
-            <img src="/icons/nexus-logo.jpg" alt="SafeTrace logo" className="h-full w-full object-cover" />
+            <img src="/icons/nexus-logo.jpg" alt="Nexus logo" className="h-full w-full object-cover" />
           </div>
-          <h1 className="text-3xl font-extrabold text-white">Welcome to SafeTrace</h1>
+          <h1 className="text-3xl font-extrabold text-white">Welcome to Nexus</h1>
           <p className="text-blue-200/70 mt-1 text-sm">Secure incident reporting for citizens & officials.</p>
         </div>
 

@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/select";
 
 export const Route = createFileRoute("/admin/reports")({
-  head: () => ({ meta: [{ title: "Manage Reports — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Manage Reports — Nexus" }] }),
   component: () => (
     <RequireAuth admin>
       <ManageReports />

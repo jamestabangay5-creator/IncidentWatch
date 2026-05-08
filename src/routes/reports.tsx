@@ -9,7 +9,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/reports")({
-  head: () => ({ meta: [{ title: "My Reports — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "My Reports — Nexus" }] }),
   component: () => (
     <RequireAuth>
       <MyReports />

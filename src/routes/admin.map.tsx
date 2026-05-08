@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 
 export const Route = createFileRoute("/admin/map")({
-  head: () => ({ meta: [{ title: "Hotspot Map — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Hotspot Map — Nexus" }] }),
   component: () => (
     <RequireAuth admin>
       <AdminMap />

@@ -116,7 +116,7 @@ function Landing() {
       <footer className="relative border-t border-white/10 py-8">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-blue-300/60">
           <div className="flex items-center gap-2 font-semibold text-blue-200">
-            <img src="/icons/nexus-logo.jpg" alt="SafeTrace" className="h-5 w-5 rounded object-cover" /> SafeTrace
+            <img src="/icons/nexus-logo.jpg" alt="Nexus" className="h-5 w-5 rounded object-cover" /> Nexus
           </div>
           <div>© {new Date().getFullYear()} · Capstone Project</div>
         </div>

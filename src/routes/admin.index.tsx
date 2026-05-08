@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/admin/")({
-  head: () => ({ meta: [{ title: "Admin Dashboard — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Admin Dashboard — Nexus" }] }),
   component: () => <RequireAuth admin><AdminDashboard /></RequireAuth>,
 });
 
@@ -57,7 +57,7 @@ function AdminDashboard() {
       });
       if (data.length === 0) { toast.error("No reports in selected range"); setExporting(false); return; }
       const doc = new jsPDF();
-      doc.setFontSize(16); doc.text("SafeTrace — Incident Report", 14, 18);
+      doc.setFontSize(16); doc.text("Nexus — Incident Report", 14, 18);
       doc.setFontSize(10);
       doc.text(`Period: ${format(start, "PPP")} – ${format(end, "PPP")}`, 14, 25);
       doc.text(`Total: ${data.length} reports`, 14, 31);
@@ -72,7 +72,7 @@ function AdminDashboard() {
         styles: { fontSize: 8, cellPadding: 2 },
         headStyles: { fillColor: [30, 58, 138] },
       });
-      doc.save(`safetrace-${format(start, "yyyy-MM-dd")}-to-${format(end, "yyyy-MM-dd")}.pdf`);
+      doc.save(`nexus-${format(start, "yyyy-MM-dd")}-to-${format(end, "yyyy-MM-dd")}.pdf`);
       toast.success(`Exported ${data.length} reports`);
     } catch (err) { toast.error("Export failed"); console.error(err); }
     finally { setExporting(false); }

@@ -8,7 +8,7 @@ import { RequireAuth } from "@/components/RequireAuth";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/dashboard")({
-  head: () => ({ meta: [{ title: "Dashboard — SafeTrace" }] }),
+  head: () => ({ meta: [{ title: "Dashboard — Nexus" }] }),
   component: () => (
     <RequireAuth>
       <DashboardPage />

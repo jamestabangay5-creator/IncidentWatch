@@ -209,10 +209,10 @@ export function AppHeader() {
           <Link to="/" className="flex items-center gap-2 font-bold tracking-tight shrink-0">
             <img
               src="/icons/nexus-logo.jpg"
-              alt="SafeTrace logo"
+              alt="Nexus logo"
               className="h-8 w-8 rounded-lg object-cover shadow-[var(--shadow-glow)]"
             />
-            <span className="hidden sm:inline">SafeTrace</span>
+            <span className="hidden sm:inline">Nexus</span>
           </Link>
 
           {/* Desktop nav */}

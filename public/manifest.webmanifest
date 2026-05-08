@@ -1,6 +1,6 @@
 {
-  "name": "SafeTrace — Incident Reporting",
-  "short_name": "SafeTrace",
+  "name": "Nexus — Incident Reporting",
+  "short_name": "Nexus",
   "description": "Secure, tamper-evident incident reporting with geospatial hotspot mapping.",
   "start_url": "/",
   "display": "standalone",
@@ -52,14 +52,14 @@
       "short_name": "Report",
       "description": "Submit a new incident report",
       "url": "/report/new",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/nexus-logo.jpg", "sizes": "any" }]
     },
     {
       "name": "My Reports",
       "short_name": "My Reports",
       "description": "View your submitted reports",
       "url": "/reports",
-      "icons": [{ "src": "/icons/icon-96x96.png", "sizes": "96x96" }]
+      "icons": [{ "src": "/icons/nexus-logo.jpg", "sizes": "any" }]
     }
   ]
 }

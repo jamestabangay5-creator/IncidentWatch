@@ -1,6 +1,6 @@
-# SafeTrace
+# Nexus
 
-**SafeTrace** is a secure, blockchain-backed incident reporting platform for citizens and officials. Every report is sealed with a SHA-256 hash chain for tamper-evidence, pinned on an interactive geospatial map, and managed through a role-based admin dashboard with real-time updates.
+**Nexus** is a secure, blockchain-backed incident reporting platform for citizens and officials. Every report is sealed with a SHA-256 hash chain for tamper-evidence, pinned on an interactive geospatial map, and managed through a role-based admin dashboard with real-time updates.
 
 ---
 
@@ -86,8 +86,8 @@ src/
 ### Installation
 
 ```bash
-git clone https://github.com/your-username/safetrace.git
-cd safetrace
+git clone https://github.com/your-username/nexus.git
+cd nexus
 npm install
 ```
 
@@ -136,7 +136,7 @@ service cloud.firestore {
 ### Creating the Admin Account
 
 1. Go to **Firebase Console → Authentication → Users → Add user**
-   - Email: `admin@safetrace.local`
+   - Email: `admin@nexus.local`
    - Password: *(your choice)*
    - ✅ Auto Confirm User — copy the generated UID
 
@@ -145,7 +145,7 @@ service cloud.firestore {
    **`profiles/{uid}`**
    ```
    full_name: "System Administrator"
-   email: "admin@safetrace.local"
+   email: "admin@nexus.local"
    is_active: true
    created_at: (timestamp)
    ```
