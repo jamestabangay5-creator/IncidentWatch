@@ -54,12 +54,12 @@ export const Route = createRootRoute({
     links: [
       { rel: "stylesheet", href: appCss },
       { rel: "manifest", href: "/manifest.webmanifest" },
-      // Apple touch icons
-      { rel: "apple-touch-icon", href: "/icons/icon-192x192.png" },
-      { rel: "apple-touch-icon", sizes: "152x152", href: "/icons/icon-152x152.png" },
-      { rel: "apple-touch-icon", sizes: "144x144", href: "/icons/icon-144x144.png" },
+      // Apple touch icons — using nexus-logo
+      { rel: "apple-touch-icon", href: "/icons/nexus-logo.jpg" },
+      { rel: "apple-touch-icon", sizes: "152x152", href: "/icons/nexus-logo.jpg" },
+      { rel: "apple-touch-icon", sizes: "144x144", href: "/icons/nexus-logo.jpg" },
       // Favicon
-      { rel: "icon", type: "image/png", sizes: "32x32", href: "/icons/icon-96x96.png" },
+      { rel: "icon", type: "image/jpeg", href: "/icons/nexus-logo.jpg" },
       { rel: "icon", type: "image/png", sizes: "16x16", href: "/icons/icon-72x72.png" },
     ],
   }),

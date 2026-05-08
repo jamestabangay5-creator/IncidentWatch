@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Shield, MapPin, Lock, Activity, ArrowRight, FileCheck2, ChevronRight } from "lucide-react";
+import { MapPin, Lock, Activity, ArrowRight, FileCheck2, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
@@ -116,7 +116,7 @@ function Landing() {
       <footer className="relative border-t border-white/10 py-8">
         <div className="container mx-auto px-4 flex items-center justify-between text-sm text-blue-300/60">
           <div className="flex items-center gap-2 font-semibold text-blue-200">
-            <Shield className="h-4 w-4" /> SafeTrace
+            <img src="/icons/nexus-logo.jpg" alt="SafeTrace" className="h-5 w-5 rounded object-cover" /> SafeTrace
           </div>
           <div>© {new Date().getFullYear()} · Capstone Project</div>
         </div>

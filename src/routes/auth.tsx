@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Shield, Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -90,8 +90,8 @@ function AuthPage() {
       <div className="relative w-full max-w-md">
         {/* Logo + heading */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500 to-cyan-500 shadow-lg shadow-blue-500/40 mb-4 hover:scale-110 transition-transform duration-300">
-            <Shield className="h-8 w-8 text-white" />
+          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl shadow-lg shadow-blue-500/40 mb-4 hover:scale-110 transition-transform duration-300 overflow-hidden">
+            <img src="/icons/nexus-logo.jpg" alt="SafeTrace logo" className="h-full w-full object-cover" />
           </div>
           <h1 className="text-3xl font-extrabold text-white">Welcome to SafeTrace</h1>
           <p className="text-blue-200/70 mt-1 text-sm">Secure incident reporting for citizens & officials.</p>

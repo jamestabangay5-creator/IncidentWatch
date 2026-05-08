@@ -1,6 +1,5 @@
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import {
-  Shield,
   LogOut,
   LayoutDashboard,
   FilePlus2,
@@ -208,9 +207,11 @@ export function AppHeader() {
 
           {/* Logo */}
           <Link to="/" className="flex items-center gap-2 font-bold tracking-tight shrink-0">
-            <div className="h-8 w-8 rounded-lg bg-[image:var(--gradient-hero)] flex items-center justify-center shadow-[var(--shadow-glow)]">
-              <Shield className="h-4 w-4 text-primary-foreground" />
-            </div>
+            <img
+              src="/icons/nexus-logo.jpg"
+              alt="SafeTrace logo"
+              className="h-8 w-8 rounded-lg object-cover shadow-[var(--shadow-glow)]"
+            />
             <span className="hidden sm:inline">SafeTrace</span>
           </Link>
 
