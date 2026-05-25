@@ -1,5 +1,6 @@
 import { Outlet, Link, createRootRoute, HeadContent, Scripts } from "@tanstack/react-router";
 import { AuthProvider } from "@/hooks/useAuth";
+import { LangProvider } from "@/lib/i18n";
 import { AppHeader } from "@/components/AppHeader";
 import { Toaster } from "@/components/ui/sonner";
 import { PWAInstallPrompt } from "@/components/PWAInstallPrompt";
@@ -85,14 +86,16 @@ function RootShell({ children }: { children: React.ReactNode }) {
 function RootComponent() {
   return (
     <AuthProvider>
-      <div className="min-h-screen flex flex-col">
-        <AppHeader />
-        <main className="flex-1">
-          <Outlet />
-        </main>
-      </div>
-      <Toaster richColors position="top-right" />
-      <PWAInstallPrompt />
+      <LangProvider>
+        <div className="min-h-screen flex flex-col">
+          <AppHeader />
+          <main className="flex-1">
+            <Outlet />
+          </main>
+        </div>
+        <Toaster richColors position="top-right" />
+        <PWAInstallPrompt />
+      </LangProvider>
     </AuthProvider>
   );
 }

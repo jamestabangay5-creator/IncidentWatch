@@ -8,6 +8,7 @@ import {
 } from "firebase/firestore";
 import { db } from "@/integrations/firebase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useLang, INCIDENT_TYPES } from "@/lib/i18n";
 import { RequireAuth } from "@/components/RequireAuth";
 import { MapPicker } from "@/components/MapPicker";
 import { Button } from "@/components/ui/button";
@@ -22,20 +23,7 @@ export const Route = createFileRoute("/report/new")({
   component: () => <RequireAuth><NewReport /></RequireAuth>,
 });
 
-const INCIDENT_TYPES = [
-  "Theft","Vandalism","Assault","Traffic accident","Fire",
-  "Suspicious activity","Public disturbance","Environmental hazard","Other",
-];
-
 const MAX_IMAGE_SIZE_MB = 0.8;
-
-const schema = z.object({
-  incident_type: z.string().min(1, "Choose an incident type"),
-  description: z.string().trim().min(10, "Description must be at least 10 characters").max(2000),
-  incident_date: z.string().min(1, "Pick a date"),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-});
 
 async function imageToBase64(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
@@ -58,6 +46,7 @@ async function imageToBase64(file: File): Promise<string> {
 
 function NewReport() {
   const { user } = useAuth();
+  const { t, lang, incidentLabel } = useLang();
   const navigate = useNavigate();
   const [busy, setBusy] = useState(false);
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
@@ -65,12 +54,21 @@ function NewReport() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
 
+  // Validation schema uses translated messages
+  const schema = z.object({
+    incident_type: z.string().min(1, t("chooseIncidentType")),
+    description: z.string().trim().min(10, t("descMin")).max(2000),
+    incident_date: z.string().min(1, t("pickDate")),
+    latitude: z.number().min(-90).max(90),
+    longitude: z.number().min(-180).max(180),
+  });
+
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0] ?? null;
     setFile(f);
     if (f) {
       if (f.size / 1024 / 1024 > 5) {
-        toast.error("Image must be under 5 MB");
+        toast.error(t("imageTooLarge"));
         setFile(null); setPreview(null); e.target.value = ""; return;
       }
       setPreview(URL.createObjectURL(f));
@@ -98,7 +96,7 @@ function NewReport() {
       if (file) {
         imageUrl = await imageToBase64(file);
         if (Math.round((imageUrl.length * 3) / 4 / 1024) > MAX_IMAGE_SIZE_MB * 1024) {
-          toast.error("Image is too large after compression. Please use a smaller image.");
+          toast.error(t("imageCompressError"));
           setBusy(false); return;
         }
       }
@@ -106,9 +104,10 @@ function NewReport() {
       const lastSnap = await getDocs(query(collection(db, "blockchain_logs"), orderBy("block_index", "desc"), limit(1)));
       const previousHash = lastSnap.empty ? GENESIS_HASH : (lastSnap.docs[0].data().hash_value as string);
 
+      // Always store the English value in Firestore for consistency
       const reportRef = await addDoc(collection(db, "reports"), {
         user_id: user.uid,
-        incident_type: parsed.data.incident_type,
+        incident_type: parsed.data.incident_type,   // English key
         description: parsed.data.description,
         image_url: imageUrl,
         latitude: parsed.data.latitude,
@@ -144,10 +143,10 @@ function NewReport() {
         payload, created_at: serverTimestamp(),
       });
 
-      toast.success("Report submitted and sealed in blockchain");
+      toast.success(t("submitSuccess"));
       navigate({ to: "/reports" });
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Submission failed");
+      toast.error(err instanceof Error ? err.message : t("submissionFailed"));
     } finally {
       setBusy(false);
     }
@@ -163,8 +162,8 @@ function NewReport() {
               <FilePlus2 className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h1 className="text-3xl font-extrabold tracking-tight">Submit Incident Report</h1>
-              <p className="text-blue-200/60 text-sm mt-0.5">Your report will be sealed with SHA-256 blockchain hashing.</p>
+              <h1 className="text-3xl font-extrabold tracking-tight">{t("submitReport")}</h1>
+              <p className="text-blue-200/60 text-sm mt-0.5">{t("submitSubtitle")}</p>
             </div>
           </div>
         </div>
@@ -172,26 +171,42 @@ function NewReport() {
 
       <div className="container mx-auto px-4 py-8 max-w-3xl">
         <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Type + Date */}
+
+          {/* Step 1 — Incident type + date */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">1</span>
-              Incident details
+              {t("incidentDetails")}
             </h2>
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <Label className="text-slate-700 font-medium">Incident type</Label>
+                <Label className="text-slate-700 font-medium">{t("incidentType")}</Label>
                 <Select value={type} onValueChange={setType}>
                   <SelectTrigger className="mt-1 border-slate-200 focus:border-blue-400 focus:ring-blue-400/20">
-                    <SelectValue placeholder="Choose type…" />
+                    <SelectValue placeholder={t("chooseType")} />
                   </SelectTrigger>
-                  <SelectContent>
-                    {INCIDENT_TYPES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                  <SelectContent className="max-h-72">
+                    {INCIDENT_TYPES.map((inc) => (
+                      <SelectItem key={inc.value} value={inc.value}>
+                        <span className="font-medium">{lang === "tl" ? inc.tl : inc.en}</span>
+                        {lang === "tl" && (
+                          <span className="ml-1.5 text-xs text-slate-400">({inc.en})</span>
+                        )}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                {/* Show both labels when a type is selected */}
+                {type && (
+                  <p className="mt-1.5 text-xs text-slate-500">
+                    {lang === "tl"
+                      ? `EN: ${incidentLabel(type)} · TL: ${INCIDENT_TYPES.find(i => i.value === type)?.tl}`
+                      : `TL: ${INCIDENT_TYPES.find(i => i.value === type)?.tl}`}
+                  </p>
+                )}
               </div>
               <div>
-                <Label htmlFor="incident_date" className="text-slate-700 font-medium">Date of incident</Label>
+                <Label htmlFor="incident_date" className="text-slate-700 font-medium">{t("dateOfIncident")}</Label>
                 <Input
                   id="incident_date" name="incident_date" type="date" required
                   max={new Date().toISOString().slice(0, 10)}
@@ -201,24 +216,24 @@ function NewReport() {
             </div>
           </div>
 
-          {/* Description */}
+          {/* Step 2 — Description */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">2</span>
-              Description
+              {t("description")}
             </h2>
             <Textarea
               id="description" name="description" rows={5} required maxLength={2000}
-              placeholder="Describe what happened in detail…"
+              placeholder={t("describeWhat")}
               className="border-slate-200 focus:border-blue-400 focus:ring-blue-400/20 resize-none"
             />
           </div>
 
-          {/* Image */}
+          {/* Step 3 — Evidence photo */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">3</span>
-              Evidence photo <span className="text-slate-400 font-normal text-sm">(optional)</span>
+              {t("evidencePhoto")} <span className="text-slate-400 font-normal text-sm">{t("optional")}</span>
             </h2>
             <Input
               id="image" type="file" accept="image/*" onChange={handleFileChange}
@@ -229,16 +244,17 @@ function NewReport() {
             )}
           </div>
 
-          {/* Location */}
+          {/* Step 4 — Location */}
           <div className="rounded-2xl border border-slate-200 bg-white shadow-sm p-6">
             <h2 className="font-bold text-slate-800 mb-4 flex items-center gap-2">
               <span className="h-6 w-6 rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-white text-xs flex items-center justify-center font-bold">4</span>
-              Location
+              {t("location")}
             </h2>
+            <p className="text-xs text-slate-500 mb-3">{t("clickMap")}</p>
             <MapPicker value={coords} onChange={setCoords} />
             {coords && (
               <p className="text-xs text-slate-400 mt-2 font-mono">
-                📍 {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
+                📍 {t("selected")}: {coords.lat.toFixed(5)}, {coords.lng.toFixed(5)}
               </p>
             )}
           </div>
@@ -251,11 +267,11 @@ function NewReport() {
             {busy ? (
               <span className="flex items-center gap-2">
                 <span className="h-4 w-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                Sealing on blockchain…
+                {t("sealing")}
               </span>
             ) : (
               <span className="flex items-center gap-2">
-                <Shield className="h-4 w-4" /> Submit & seal report
+                <Shield className="h-4 w-4" /> {t("submitSeal")}
               </span>
             )}
           </Button>

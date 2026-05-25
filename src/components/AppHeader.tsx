@@ -13,9 +13,11 @@ import {
   ShieldCheck,
   Volume2,
   VolumeX,
+  Globe,
 } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useState, useRef, useEffect } from "react";
@@ -170,6 +172,7 @@ function NotificationBell() {
 // ─── main header ─────────────────────────────────────────────────────────────
 export function AppHeader() {
   const { user, isAdmin, signOut } = useAuth();
+  const { lang, setLang } = useLang();
   const navigate = useNavigate();
   const path = useRouterState({ select: (s) => s.location.pathname });
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -246,6 +249,16 @@ export function AppHeader() {
 
                 {/* Notification bell — shown for both users and admins */}
                 <NotificationBell />
+
+                {/* Language toggle */}
+                <button
+                  onClick={() => setLang(lang === "en" ? "tl" : "en")}
+                  title={lang === "en" ? "Switch to Tagalog" : "Switch to English"}
+                  className="flex items-center gap-1 h-9 px-2 rounded-md text-xs font-semibold text-foreground/80 hover:bg-secondary transition-colors"
+                >
+                  <Globe className="h-3.5 w-3.5" />
+                  {lang === "en" ? "EN" : "TL"}
+                </button>
 
                 {/* Sign out — desktop */}
                 <Button
