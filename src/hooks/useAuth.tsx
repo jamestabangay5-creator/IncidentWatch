@@ -9,6 +9,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   updateProfile,
+  GoogleAuthProvider,
+  signInWithPopup,
 } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/integrations/firebase/client";
@@ -21,6 +23,7 @@ export interface AuthCtx {
   loading: boolean;
   isAdmin: boolean;
   signIn: (email: string, password: string) => Promise<void>;
+  signInWithGoogle: () => Promise<void>;
   signUp: (opts: { email: string; password: string; full_name: string; contact_number: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
@@ -69,6 +72,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await signInWithEmailAndPassword(auth, email, password);
   }
 
+  async function signInWithGoogle() {
+    const provider = new GoogleAuthProvider();
+    provider.setCustomParameters({ prompt: "select_account" });
+    const cred = await signInWithPopup(auth, provider);
+    const u = cred.user;
+    // Create profile if first time signing in with Google
+    const profileRef = doc(db, "profiles", u.uid);
+    const existing = await getDoc(profileRef);
+    if (!existing.exists()) {
+      await setDoc(profileRef, {
+        full_name: u.displayName ?? u.email?.split("@")[0] ?? "User",
+        email: u.email ?? "",
+        contact_number: null,
+        is_active: true,
+        profile_photo: u.photoURL ?? null,
+        created_at: serverTimestamp(),
+        updated_at: serverTimestamp(),
+      });
+      await setDoc(doc(db, "user_role", u.uid), {
+        roles: ["user"],
+        updated_at: serverTimestamp(),
+      });
+    }
+  }
+
   async function signUp({
     email,
     password,
@@ -106,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loading,
     isAdmin: roles.includes("admin"),
     signIn,
+    signInWithGoogle,
     signUp,
     signOut,
   };

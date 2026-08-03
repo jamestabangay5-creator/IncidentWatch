@@ -40,6 +40,7 @@ interface Row {
   incident_type: string;
   description: string;
   image_url: string | null;
+  reporter_photo?: string | null;
   latitude: number;
   longitude: number;
   status: string;
@@ -56,8 +57,8 @@ const STATUSES = ["Pending", "Verified", "Resolved", "Rejected"] as const;
 const ALLOWED_TRANSITIONS: Record<string, string[]> = {
   Pending:  ["Verified", "Rejected"],
   Verified: ["Resolved", "Rejected"],
-  Resolved: [],   // final — no further changes
-  Rejected: [],   // final — no further changes
+  Resolved: [],
+  Rejected: [],
 };
 
 const statusColor: Record<string, string> = {
@@ -66,6 +67,41 @@ const statusColor: Record<string, string> = {
   Resolved: "bg-green-100 text-green-800 border-green-300",
   Rejected: "bg-red-100 text-red-800 border-red-300",
 };
+
+// Color coding by incident type severity
+const INCIDENT_COLOR: Record<string, { bar: string; badge: string; bg: string }> = {
+  // Critical / violent
+  "Rape":                      { bar: "bg-red-700",    badge: "bg-red-100 text-red-800 border-red-400",       bg: "bg-red-50/40" },
+  "Homicide / Murder":         { bar: "bg-red-700",    badge: "bg-red-100 text-red-800 border-red-400",       bg: "bg-red-50/40" },
+  "Physical injury / Assault": { bar: "bg-red-500",    badge: "bg-red-100 text-red-700 border-red-300",       bg: "bg-red-50/30" },
+  "Child abuse":               { bar: "bg-red-600",    badge: "bg-red-100 text-red-800 border-red-400",       bg: "bg-red-50/40" },
+  "Sexual harassment":         { bar: "bg-rose-500",   badge: "bg-rose-100 text-rose-800 border-rose-300",    bg: "bg-rose-50/30" },
+  // High severity
+  "Theft / Robbery":           { bar: "bg-orange-500", badge: "bg-orange-100 text-orange-800 border-orange-300", bg: "bg-orange-50/30" },
+  "Burglary":                  { bar: "bg-orange-500", badge: "bg-orange-100 text-orange-800 border-orange-300", bg: "bg-orange-50/30" },
+  "Illegal drugs":             { bar: "bg-orange-600", badge: "bg-orange-100 text-orange-800 border-orange-400", bg: "bg-orange-50/40" },
+  "Stalking":                  { bar: "bg-orange-400", badge: "bg-orange-100 text-orange-700 border-orange-300", bg: "bg-orange-50/20" },
+  "Kidnapping":                { bar: "bg-red-700",    badge: "bg-red-100 text-red-800 border-red-400",       bg: "bg-red-50/40" },
+  // Medium severity
+  "Fire incident":             { bar: "bg-amber-500",  badge: "bg-amber-100 text-amber-800 border-amber-300", bg: "bg-amber-50/30" },
+  "Medical emergency":         { bar: "bg-amber-500",  badge: "bg-amber-100 text-amber-800 border-amber-300", bg: "bg-amber-50/30" },
+  "Road accident":             { bar: "bg-amber-400",  badge: "bg-amber-100 text-amber-700 border-amber-300", bg: "bg-amber-50/20" },
+  "Missing person":            { bar: "bg-amber-500",  badge: "bg-amber-100 text-amber-800 border-amber-300", bg: "bg-amber-50/30" },
+  "Domestic disturbance":      { bar: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-800 border-yellow-300", bg: "bg-yellow-50/30" },
+  "Scam / Fraud":              { bar: "bg-yellow-500", badge: "bg-yellow-100 text-yellow-800 border-yellow-300", bg: "bg-yellow-50/30" },
+  "Cyber harassment":          { bar: "bg-yellow-400", badge: "bg-yellow-100 text-yellow-700 border-yellow-300", bg: "bg-yellow-50/20" },
+  // Lower severity
+  "Vandalism":                 { bar: "bg-blue-400",   badge: "bg-blue-100 text-blue-700 border-blue-300",    bg: "bg-blue-50/20" },
+  "Public disturbance":        { bar: "bg-blue-400",   badge: "bg-blue-100 text-blue-700 border-blue-300",    bg: "bg-blue-50/20" },
+  "Noise complaint":           { bar: "bg-sky-400",    badge: "bg-sky-100 text-sky-700 border-sky-300",       bg: "bg-sky-50/20" },
+  "Animal bite":               { bar: "bg-teal-400",   badge: "bg-teal-100 text-teal-700 border-teal-300",    bg: "bg-teal-50/20" },
+  "Drunk and disorderly":      { bar: "bg-purple-400", badge: "bg-purple-100 text-purple-700 border-purple-300", bg: "bg-purple-50/20" },
+  "Not sure / Other":          { bar: "bg-slate-400",  badge: "bg-slate-100 text-slate-700 border-slate-300", bg: "bg-slate-50/20" },
+};
+
+function getIncidentStyle(type: string) {
+  return INCIDENT_COLOR[type] ?? { bar: "bg-slate-400", badge: "bg-slate-100 text-slate-700 border-slate-300", bg: "" };
+}
 
 function ManageReports() {
   const { user } = useAuth();
@@ -103,8 +139,9 @@ function ManageReports() {
                 id: d.id,
                 user_id: data.user_id,
                 incident_type: data.incident_type,
-                description: data.description,
+                description: data.description ?? "",
                 image_url: data.image_url ?? null,
+                reporter_photo: data.reporter_photo ?? null,
                 latitude: data.latitude,
                 longitude: data.longitude,
                 status: data.status,
@@ -234,24 +271,30 @@ function ManageReports() {
               <p className="text-slate-500 font-medium">No reports{filter !== "All" ? ` with status "${filter}"` : ""}.</p>
             </div>
           ) : (
-            visible.map((r) => (
-              <div key={r.id} className="group rounded-2xl border border-slate-200 bg-white shadow-sm hover:shadow-lg hover:border-blue-200 hover:-translate-y-0.5 transition-all duration-300 overflow-hidden">
-                <div className={`h-1 w-full ${
-                  r.status === "Pending" ? "bg-amber-400" :
-                  r.status === "Verified" ? "bg-blue-500" :
-                  r.status === "Resolved" ? "bg-emerald-500" : "bg-red-500"
-                }`} />
+            visible.map((r) => {
+              const incStyle = getIncidentStyle(r.incident_type);
+              return (
+              <div key={r.id} className={`group rounded-2xl border border-slate-200 shadow-sm hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300 overflow-hidden ${incStyle.bg} bg-white`}>
+                {/* Top bar: incident type color */}
+                <div className={`h-1.5 w-full ${incStyle.bar}`} />
                 <div className="p-5">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-slate-800">{r.incident_type}</h3>
+                        {/* Incident type badge */}
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-semibold border ${incStyle.badge}`}>
+                          {r.incident_type}
+                        </span>
+                        {/* Status badge */}
                         <Badge variant="outline" className={statusColor[r.status]}>{r.status}</Badge>
                       </div>
                       <p className="text-xs text-slate-400 mt-1">
                         By {r.reporter_name} ({r.reporter_email}) · {format(new Date(r.incident_date), "PPP")}
                       </p>
-                      <p className="mt-2 text-sm text-slate-600 leading-relaxed">{r.description}</p>
+                      {r.description && (
+                        <p className="mt-2 text-sm text-slate-600 leading-relaxed">{r.description}</p>
+                      )}
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-400">
                         <span className="inline-flex items-center gap-1">
                           <MapPin className="h-3 w-3 text-blue-400" />
@@ -275,6 +318,17 @@ function ManageReports() {
                           </Button>
                         </a>
                       </div>
+                      {/* Reporter profile photo */}
+                      {(r as Row & { reporter_photo?: string }).reporter_photo && (
+                        <div className="mt-3 flex items-center gap-2">
+                          <img
+                            src={(r as Row & { reporter_photo?: string }).reporter_photo}
+                            alt="reporter"
+                            className="h-8 w-8 rounded-full object-cover border border-slate-200"
+                          />
+                          <span className="text-xs text-slate-400">Reporter photo</span>
+                        </div>
+                      )}
                       {r.image_url && (
                         <img src={r.image_url} alt="evidence" className="mt-3 h-28 rounded-xl border border-slate-200 object-cover shadow-sm hover:scale-[1.02] transition-transform duration-200 cursor-pointer" />
                       )}
@@ -284,8 +338,7 @@ function ManageReports() {
                         <span className="text-xs text-slate-400 text-right italic px-1">No further actions</span>
                       ) : (
                         (ALLOWED_TRANSITIONS[r.status] ?? []).map((s) => (
-                          <Button
-                            key={s} size="sm"
+                          <Button key={s} size="sm"
                             className={
                               s === "Resolved"
                                 ? "bg-gradient-to-r from-emerald-500 to-green-600 hover:from-emerald-400 hover:to-green-500 text-white border-0 shadow-sm hover:scale-105 transition-all duration-200"
@@ -293,8 +346,7 @@ function ManageReports() {
                                 ? "bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 text-white border-0 shadow-sm hover:scale-105 transition-all duration-200"
                                 : "border-slate-200 hover:border-blue-300 hover:bg-blue-50 hover:scale-105 transition-all duration-200"
                             }
-                            onClick={() => updateStatus(r.id, s)}
-                          >
+                            onClick={() => updateStatus(r.id, s)}>
                             Mark {s}
                           </Button>
                         ))
@@ -303,7 +355,8 @@ function ManageReports() {
                   </div>
                 </div>
               </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
